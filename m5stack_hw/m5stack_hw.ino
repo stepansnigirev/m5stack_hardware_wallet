@@ -49,7 +49,11 @@ void showMnemonic(String mnemonic){
   M5.Lcd.setTextColor(BLACK);
   M5.Lcd.setTextSize(1);
   M5.Lcd.println("\nWrite down your mnemonic:\n\n");
+  
+  M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
   M5.Lcd.println(mnemonic);
+  M5.Lcd.setFreeFont(&FreeSans9pt7b);
+  
   M5.Lcd.println("\n\nand press any button to continue\n");
   bool ok = false;
   while(!ok){
@@ -67,11 +71,9 @@ void loadMnemonic(){
   String magic = EEPROM.readString(0);
   String mnemonic;
   if(magic == "mnemonic"){ // do we already have a mnemonic?
-    Serial.println("mnemonic exists");
     // load mnemonic from address 10
     mnemonic = EEPROM.readString(10);
   }else{
-    Serial.println("generating new mnemonic...");
     // random number generation
     // truly random only if WiFi or Bluetooth is enabled
     // not super efficient as we use only 1 byte from every 32-bit random number
@@ -94,14 +96,11 @@ String showXpub(){
   // Lcd display
   M5.Lcd.fillScreen(WHITE);
   M5.Lcd.setTextColor(BLACK);
-  M5.Lcd.setTextSize(1);
+
   M5.Lcd.qrcode(account.xpub(), 60, 20, 200);
 
-  M5.Lcd.setCursor(100, 5);
-  M5.Lcd.println("Master public key:");
-
-//  M5.Lcd.setCursor(0, M5.Lcd.height()-30);
-//  M5.Lcd.println(account.xpub());
+  M5.Lcd.setCursor(M5.Lcd.width()/2, 10);
+  M5.Lcd.drawString("Master public key:", M5.Lcd.width()/2, 10);
 
   return account.xpub();
 }
@@ -109,44 +108,31 @@ String showXpub(){
 void setup(){
   // initialize the M5Stack object
   M5.begin();
-
-  // Serial
-  Serial.begin(115200);
-  Serial.println("\n\nReady to print stuff!");
+  M5.Lcd.setTextDatum(MC_DATUM);
+  M5.Lcd.setFreeFont(&FreeSans9pt7b);
 
   SerialBT.begin("M5wallet"); //Bluetooth device name
-  Serial.println("The device started, now you can pair it with bluetooth!");
 
   EEPROM.begin(300); // should be enough for any mnemonic and other data
   loadMnemonic();
-
-  Serial.print("Master public key: ");
-  Serial.println(account.xpub());
-  Serial.print("First bitcoin address: ");
-  Serial.println(account.derive("m/0/0").address());
-
+  
   showXpub();
 }
 
 String showAddress(){
   String addr = account.child(change).child(ind).address();
   M5.Lcd.fillScreen(WHITE);
-  M5.Lcd.qrcode(String("bitcoin:")+addr, 60, 10, 200);
+  M5.Lcd.qrcode(String("bitcoin:")+addr, 80, 25, 170);
 
-  M5.Lcd.setCursor(100, 5);
+  M5.Lcd.setFreeFont(&FreeSans9pt7b);
   if(change){
-    M5.Lcd.println("Change address:");
+    M5.Lcd.drawString(String("Change address ")+ind+":", M5.Lcd.width()/2, 10);
   }else{
-    M5.Lcd.println("Receiving address:");
+    M5.Lcd.drawString(String("Receiving address ")+ind+":", M5.Lcd.width()/2, 10);
   }
 
-  M5.Lcd.setCursor(30, 210);
-  M5.Lcd.setTextSize(1);
-  M5.Lcd.print(addr);
-
-  String path = String("m/84'/1'/0'/")+int(change)+"/"+ind;
-  M5.Lcd.setCursor(110, 220);
-  M5.Lcd.print(path);
+  M5.Lcd.drawString(addr.substring(0,20), M5.Lcd.width()/2, M5.Lcd.height()-32);
+  M5.Lcd.drawString(addr.substring(20), M5.Lcd.width()/2, M5.Lcd.height()-15);
   return addr;
 }
 
@@ -154,7 +140,6 @@ void doCommand(){
   // show xpub
   if(command.startsWith("xpub")){
     String xpub = showXpub();
-    Serial.println(xpub);
     SerialBT.println(xpub);
     return;
   }
@@ -163,7 +148,6 @@ void doCommand(){
     change = false;
     ind = command.substring(5).toInt();
     String addr = showAddress();
-    Serial.println(addr);
     SerialBT.println(addr);
     return;
   }
@@ -176,25 +160,21 @@ void doCommand(){
     M5.Lcd.setCursor(0,0);
     M5.Lcd.setTextSize(1);
     // display transaction on screen
-    M5.Lcd.println("\n Sign transaction:\n\n");
+    M5.Lcd.println("\nSign transaction:\n");
     for(int i=0; i<tx.tx.outputsNumber; i++){ 
-      M5.Lcd.print(" ");
-      M5.Lcd.println(tx.tx.txOuts[i].address(&Testnet));
+      M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
+      M5.Lcd.print(String("Out ")+i+": ");
+      M5.Lcd.setFreeFont(&FreeSans9pt7b);
+      M5.Lcd.print(tx.tx.txOuts[i].address(&Testnet));
       M5.Lcd.print(" -> ");
       M5.Lcd.print(tx.tx.txOuts[i].btcAmount()*1000);
-      M5.Lcd.println(" mBTC\n");
-
-      Serial.print(tx.tx.txOuts[i].address(&Testnet));
-      Serial.print(" -> ");
-      Serial.print(tx.tx.txOuts[i].btcAmount()*1000);
-      Serial.println(" mBTC");
+      M5.Lcd.println(" mBTC");
     }
-    M5.Lcd.print(" Fee: ");
+    M5.Lcd.setFreeFont(&FreeSansBold9pt7b);
+    M5.Lcd.print("Fee: ");
+    M5.Lcd.setFreeFont(&FreeSans9pt7b);
     M5.Lcd.print((uint32_t)tx.fee());
     M5.Lcd.println(" satoshi");
-    Serial.print("Fee: ");
-    Serial.print((uint32_t)tx.fee());
-    Serial.println(" satoshi");
 
     M5.Lcd.setCursor(50, M5.Lcd.height()-20);
     M5.Lcd.print("Cancel");
@@ -212,8 +192,6 @@ void doCommand(){
     ESP.restart();
     return;
   }
-  Serial.print("Unknown command: ");
-  Serial.println(command);
   SerialBT.print("Unknown command: ");
   SerialBT.println(command);
 }
@@ -233,6 +211,8 @@ void loop(){
     }else if(M5.BtnC.wasReleased()){
       ind++;
       showAddress();
+    }else if(M5.BtnB.pressedFor(3000)){ // turn off after 3 sec hold
+      M5.powerOFF();
     }
   }else{ // signing request - confirm / cancel
     if(M5.BtnA.wasReleased()){
