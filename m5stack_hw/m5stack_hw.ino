@@ -98,7 +98,7 @@ String showXpub(){
   M5.Lcd.qrcode(account.xpub(), 60, 20, 200);
 
   M5.Lcd.setCursor(100, 5);
-  M5.Lcd.println("Your master public key:");
+  M5.Lcd.println("Master public key:");
 
 //  M5.Lcd.setCursor(0, M5.Lcd.height()-30);
 //  M5.Lcd.println(account.xpub());
@@ -114,7 +114,7 @@ void setup(){
   Serial.begin(115200);
   Serial.println("\n\nReady to print stuff!");
 
-  SerialBT.begin("ESP32test2"); //Bluetooth device name
+  SerialBT.begin("M5wallet"); //Bluetooth device name
   Serial.println("The device started, now you can pair it with bluetooth!");
 
   EEPROM.begin(300); // should be enough for any mnemonic and other data
@@ -132,6 +132,14 @@ String showAddress(){
   String addr = account.child(change).child(ind).address();
   M5.Lcd.fillScreen(WHITE);
   M5.Lcd.qrcode(String("bitcoin:")+addr, 60, 10, 200);
+
+  M5.Lcd.setCursor(100, 5);
+  if(change){
+    M5.Lcd.println("Change address:");
+  }else{
+    M5.Lcd.println("Receiving address:");
+  }
+
   M5.Lcd.setCursor(30, 210);
   M5.Lcd.setTextSize(1);
   M5.Lcd.print(addr);
@@ -192,6 +200,16 @@ void doCommand(){
     M5.Lcd.print("Cancel");
     M5.Lcd.setCursor(M5.Lcd.width()-100, M5.Lcd.height()-20);
     M5.Lcd.print("Confirm");
+    return;
+  }
+  if(command.startsWith("wipe")){
+    EEPROM.writeString(0, "blah"); // erasing the magic word
+    for(int i=0; i<200; i++){
+      EEPROM.writeUChar(10+i, 'q'); // wiping the mnemonic
+    }
+    EEPROM.writeUChar(210, '\0');
+    EEPROM.commit();
+    ESP.restart();
     return;
   }
   Serial.print("Unknown command: ");
